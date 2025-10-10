@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+import sys
 from contextlib import contextmanager
 from typing import Any, List, Optional, Tuple, Union
 
@@ -15,8 +16,12 @@ from pydantic import BaseModel
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
-from ..martingale.base_martingale_model import BaseMartingaleModel
-from ..martingale.copula_model import CopulaModel
+sys.path.append(os.path.join("..", "predictive"))
+sys.path.append(os.path.join("..", "martingale"))
+
+from base_martingale_model import BaseMartingaleModel  # type: ignore
+from base_predictive_model import BasePredictiveModel  # type: ignore
+from copula_model import CopulaModel  # type: ignore
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,7 +45,7 @@ class ScenarioTree(BaseModel):
     _db_engine: Optional[Engine] = None
 
     # Model for generating the predictive component of the scenario
-    predictive_model: Optional[Any] = None
+    predictive_model: Optional[BasePredictiveModel] = None
 
     # Model for generating the martingale component of the scenario
     martingale_model: Optional[BaseMartingaleModel] = None
@@ -564,7 +569,7 @@ class ScenarioTree(BaseModel):
         if isinstance(self.martingale_model, CopulaModel):
             return np.array(self._get_copula_means())
         elif isinstance(self.martingale_model, BaseMartingaleModel):
-            return np.asarray(self.martingale_model.mu)
+            return np.asarray(self.martingale_model.mean)
         else:
             return np.zeros_like(self.model_input[:, 0])
 
@@ -618,7 +623,7 @@ class ScenarioTree(BaseModel):
                     df[col] = df[col].fillna(method="ffill").fillna(0)  # type: ignore
                     df[col] = np.clip(df[col], -10, 10)
 
-            prediction = self.predictive_model.predict(df)
+            prediction = self.predictive_model.predict(df, dropna=False)
             predictions = (
                 prediction[[f"{col}_prediction" for col in self.cols_name]]
                 .to_numpy()

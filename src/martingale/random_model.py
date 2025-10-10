@@ -25,7 +25,7 @@ class RandomModel(BaseMartingaleModel):
         if self.config.random_state is not None:
             np.random.seed(self.config.random_state)
 
-        return np.random.multivariate_normal(self.mu, self.cov, num_samples)
+        return np.random.multivariate_normal(self.mean, self.cov, num_samples)
 
     def __str__(self):
-        return f"RandomSampling(mu={self.mu}, cov={self.cov})"
+        return f"RandomSampling(mean={self.mean}, cov={self.cov})"

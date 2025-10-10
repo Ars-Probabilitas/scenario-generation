@@ -33,4 +33,5 @@ class CopulaModel(BaseMartingaleModel):
         return self.copula.sample(num_samples).to_numpy()
 
     def __str__(self) -> str:
-        return f"CopulaSampling(dimensions={self.mu.shape[0]})"
+        assert self.mean is not None and isinstance(self.mean, np.ndarray)
+        return f"CopulaSampling(dimensions={self.mean.shape[0]})"

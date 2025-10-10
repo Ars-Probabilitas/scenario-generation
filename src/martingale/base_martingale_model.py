@@ -18,12 +18,15 @@ class BaseMartingaleModel(BaseModel):
     cov: Union[List[List[float]], np.ndarray]
     config: MartingaleModelConfig = MartingaleModelConfig()
 
-    @field_validator("mu")
-    def validate_mu(cls, v) -> np.ndarray:
-        """Validate and convert mu to numpy array."""
+    class Config:
+        arbitrary_types_allowed = True
+
+    @field_validator("mean")
+    def validate_mean(cls, v) -> np.ndarray:
+        """Validate and convert mean to numpy array."""
         arr = np.asarray(v, dtype=float)
         if arr.ndim != 1:
-            raise ValueError(f"mu must be 1-dimensional, got shape {arr.shape}")
+            raise ValueError(f"mean must be 1-dimensional, got shape {arr.shape}")
         return arr
 
     @field_validator("cov")
@@ -39,13 +42,13 @@ class BaseMartingaleModel(BaseModel):
     def model_post_init(self, __context) -> None:
         """Post-initialization validation and setup."""
         # Ensure arrays are properly converted
-        self.mu = np.asarray(self.mu, dtype=float)
+        self.mean = np.asarray(self.mean, dtype=float)
         self.cov = np.asarray(self.cov, dtype=float)
 
         # Dimension compatibility check
-        if len(self.mu) != self.cov.shape[0]:
+        if len(self.mean) != self.cov.shape[0]:
             raise ValueError(
-                f"Dimension mismatch: mu has {len(self.mu)} elements, "
+                f"Dimension mismatch: mean has {len(self.mean)} elements, "
                 f"cov is {self.cov.shape[0]}x{self.cov.shape[1]}"
             )
 
@@ -56,10 +59,7 @@ class BaseMartingaleModel(BaseModel):
                 f"num_samples must be a positive integer, got {num_samples}"
             )
 
-    def sample(
-        self,
-        num_samples: int,
-    ) -> np.ndarray:
+    def sample(self, num_samples: int) -> np.ndarray:
         """
         Method to sample from the distribution.
         """

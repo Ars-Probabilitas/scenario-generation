@@ -1,7 +1,7 @@
 import math
 import os
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import torch
@@ -14,8 +14,10 @@ from tsfm_public import (
     TimeSeriesPreprocessor,
     TinyTimeMixerForPrediction,
     TrackingCallback,
+    get_datasets,
 )
 from tsfm_public.toolkit.lr_finder import optimal_lr_finder
+from tsfm_public.toolkit.time_series_preprocessor import prepare_data_splits
 
 
 @dataclass
@@ -47,7 +49,7 @@ class TinyTimeMixersPredictiveModel(BasePredictiveModel):
         else:
             control_columns = self.control_columns
 
-        if self.target_columns is None:
+        if self.target_columns is None or self.target_columns == []:
             raise ValueError("target_columns must be provided if tsp is not given.")
 
         self.tsp = TimeSeriesPreprocessor(
@@ -99,16 +101,16 @@ class TinyTimeMixersPredictiveModel(BasePredictiveModel):
                 context_length=self.ttm_config.backcast_length,
                 prediction_length=self.ttm_config.forecast_length,
                 num_input_channels=self.tsp.num_input_channels,
-                decoder_mode=self.ttm_config.decoder_mode,
+                # decoder_mode=self.ttm_config.decoder_mode,
                 prediction_channel_indices=self.tsp.prediction_channel_indices,
                 exogenous_channel_indices=self.tsp.exogenous_channel_indices,
-                fcm_context_length=self.ttm_config.fcm_context_length,
-                fcm_use_mixer=self.ttm_config.fcm_use_mixer,
-                fcm_mix_layers=self.ttm_config.fcm_mix_layers,
-                enable_forecast_channel_mixing=self.ttm_config.enable_forecast_channel_mixing,
-                fcm_prepend_past=self.ttm_config.fcm_prepend_past,
-                dropout=self.ttm_config.dropout,
-                resolution_prefix_tuning=self.ttm_config.resolution_prefix_tuning,
+                # fcm_context_length=self.ttm_config.fcm_context_length,
+                # fcm_use_mixer=self.ttm_config.fcm_use_mixer,
+                # fcm_mix_layers=self.ttm_config.fcm_mix_layers,
+                # enable_forecast_channel_mixing=self.ttm_config.enable_forecast_channel_mixing,
+                # fcm_prepend_past=self.ttm_config.fcm_prepend_past,
+                # dropout=self.ttm_config.dropout,
+                # resolution_prefix_tuning=self.ttm_config.resolution_prefix_tuning,
             )
             self._freeze_backbone()
 
@@ -222,3 +224,53 @@ class TinyTimeMixersPredictiveModel(BasePredictiveModel):
             predictions.dropna(inplace=True)
 
         return predictions
+
+    def get_dataset(
+        self,
+        data: pd.DataFrame,
+        split_config: Optional[Dict[str, List[int | float] | float]] = None,
+    ) -> Tuple[Any, Any, Any]:
+        if split_config is None:
+            split_config = {
+                "train": [0, 0.6],
+                "valid": [0.6, 0.75],
+                "test": [0.75, 1.0],
+            }
+        if self.tsp is None:
+            raise ValueError("TimeSeriesPreprocessor is not initialized.")
+
+        if self.model is None:
+            raise ValueError("Model is not initialized.")
+
+        train_dataset, valid_dataset, test_dataset = get_datasets(  # type: ignore
+            self.tsp,
+            data,
+            split_config,
+            use_frequency_token=self.model.config.resolution_prefix_tuning,
+        )
+        return train_dataset, valid_dataset, test_dataset
+
+    def get_dataset_as_dataframe(
+        self,
+        data: pd.DataFrame,
+        split_config: Optional[Dict[str, List[int | float] | float]] = None,
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        if split_config is None:
+            split_config = {
+                "train": [0, 0.6],
+                "valid": [0.6, 0.75],
+                "test": [0.75, 1.0],
+            }
+        if self.tsp is None:
+            raise ValueError("TimeSeriesPreprocessor is not initialized.")
+
+        if self.model is None:
+            raise ValueError("Model is not initialized.")
+
+        train_df, valid_df, test_df = prepare_data_splits(  # type: ignore
+            data,
+            context_length=self.ttm_config.backcast_length,
+            split_config=split_config,
+        )
+
+        return train_df, valid_df, test_df
