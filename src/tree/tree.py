@@ -185,7 +185,7 @@ class ScenarioTree(BaseModel):
             buffer = io.BytesIO(data)
             return np.load(buffer, allow_pickle=True)
         except Exception as e:
-            raise ValueError("Corrupted array data")
+            raise ValueError(f"Corrupted array data: {e}") from e
 
     def _node_exists_in_session(self, session: Session, node_id: int) -> bool:
         """Check if node exists within a session."""
@@ -529,8 +529,12 @@ class ScenarioTree(BaseModel):
             current_date += timedelta(hours=interval_hours)
 
         all_dates = existing_dates.tolist() + new_dates
-        # I want to return only the last 512 dates
-        all_dates = all_dates[-512:]
+        # I want to return only the last N dates
+        if self.predictive_model is None:
+            raise ValueError(
+                "Predictive model is required to determine backcast length."
+            )
+        all_dates = all_dates[-self.predictive_model.config.backcast_length :]
         return pd.to_datetime(all_dates).sort_values()
 
     def _get_copula_means(self) -> List[float]:
@@ -566,6 +570,10 @@ class ScenarioTree(BaseModel):
             raise ValueError("Model input cannot be None")
         if self.mean_value is not None:
             return self.mean_value
+        if self.martingale_model is None:
+            raise ValueError(
+                "Martingale model is required. Please provide a martingale model."
+            )
         if isinstance(self.martingale_model, CopulaModel):
             return np.array(self._get_copula_means())
         elif isinstance(self.martingale_model, BaseMartingaleModel):
@@ -620,7 +628,7 @@ class ScenarioTree(BaseModel):
                     logger.warning(
                         f"Column {col} contains non-finite values. Cleaning..."
                     )
-                    df[col] = df[col].fillna(method="ffill").fillna(0)  # type: ignore
+                    df[col] = df[col].ffill().fillna(0)
                     df[col] = np.clip(df[col], -10, 10)
 
             prediction = self.predictive_model.predict(df, dropna=False)
@@ -892,7 +900,7 @@ class ScenarioTree(BaseModel):
                 ax1 = fig.add_subplot(gs[0, 0])
                 colors = cm.get_cmap("viridis", num_scenarios)
 
-                for i in range(num_scenarios - 1):
+                for i in range(num_scenarios):
                     ax1.plot(
                         time_steps, var_data[i], marker="o", alpha=0.6, color=colors(i)
                     )
