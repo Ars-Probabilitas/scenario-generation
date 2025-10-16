@@ -1,0 +1,27 @@
+[project]
+name = "scenario-generation"
+version = "0.1.0"
+description = "A Python library for generating realistic scenarios using the Doob-Meyer decomposition and Time Series Foundation Models, designed for optimization problems under uncertainty."
+authors = [
+    {name = "Tommaso Ferrario",email = "tommasoferrario81@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy (>=2.3.3,<3.0.0)",
+    "pydantic (>=2.12.0,<3.0.0)",
+    "pandas (>=2.3.3,<3.0.0)",
+    "sqlalchemy (>=2.0.43,<3.0.0)",
+    "copulas (>=0.12.3,<0.13.0)",
+    "matplotlib (>=3.10.6,<4.0.0)",
+    "granite-tsfm (>=0.3.1,<0.4.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
